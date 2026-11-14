@@ -11,17 +11,12 @@ RAINBOW = [
     ("фиолетовый", "#8B00FF"),
 ]
 
-ANGLE       = 15
-CANVAS_SIZE = 600
-CENTER      = CANVAS_SIZE / 2
-MARGIN      = 20
-MAX_RADIUS  = CENTER - MARGIN
+ANGLE = 15
 
 def centroid(pts):
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
     return sum(xs) / len(xs), sum(ys) / len(ys)
-
 
 def rotate(pts, angle_deg):
     cx, cy = centroid(pts)
@@ -47,10 +42,7 @@ def ask_vertices():
         if len(nums) != 6:
             print(f"Ошибка: введено {len(nums)} чисел, а нужно 6.\n")
             continue
-        pts = [(nums[0], nums[1]),
-               (nums[2], nums[3]),
-               (nums[4], nums[5])]
-        # проверка: точки не должны лежать на одной прямой
+        pts = [(nums[0], nums[1]), (nums[2], nums[3]), (nums[4], nums[5])]
         area = abs((pts[1][0] - pts[0][0]) * (pts[2][1] - pts[0][1])
                  - (pts[2][0] - pts[0][0]) * (pts[1][1] - pts[0][1])) / 2
         if area < 1e-6:
@@ -70,38 +62,55 @@ def ask_color():
         if not s:
             print("Введите цвет.")
             continue
-
         if s.isdigit():
             n = int(s)
             if 1 <= n <= len(RAINBOW):
                 return RAINBOW[n - 1][1], n - 1
             print(f"Номер должен быть от 1 до {len(RAINBOW)}.\n")
             continue
-
+        print(f"Введите номер 1–{len(RAINBOW)}.\n")
 
 vertices = ask_vertices()
-current_color, idx  = ask_color()
-
-cx0, cy0 = centroid(vertices)
-R = max(math.hypot(x - cx0, y - cy0) for x, y in vertices)
-scale = MAX_RADIUS / R if R > MAX_RADIUS else 1.0
-vertices = [((x - cx0) * scale + CENTER,
-             (y - cy0) * scale + CENTER) for x, y in vertices]
+current_color, idx = ask_color()
 
 root = tk.Tk()
+root.withdraw()
+
+MARGIN = 50
+cx0, cy0 = centroid(vertices)
+R = max(math.hypot(x - cx0, y - cy0) for x, y in vertices)
+desired_canvas_size = int(2 * R + 2 * MARGIN)
+
+screen_w = root.winfo_screenwidth()
+screen_h = root.winfo_screenheight()
+max_window_size = min(screen_w, screen_h) - 150
+
+if desired_canvas_size > max_window_size:
+    CANVAS_SIZE = max_window_size
+    scale = CANVAS_SIZE / desired_canvas_size
+else:
+    CANVAS_SIZE = max(300, desired_canvas_size)
+    scale = 1.0
+
+CENTER = CANVAS_SIZE / 2
+vertices = [(((x - cx0) * scale) + CENTER, ((y - cy0) * scale) + CENTER) for x, y in vertices]
+
+root.deiconify()
 root.title("Вращающийся треугольник")
+root.resizable(False, False)
+
+pos_x = (screen_w - CANVAS_SIZE) // 2
+pos_y = (screen_h - CANVAS_SIZE) // 2
+root.geometry(f"+{pos_x}+{pos_y}")
+
 canvas = tk.Canvas(root, width=CANVAS_SIZE, height=CANVAS_SIZE, bg="white")
 canvas.pack()
-tk.Label(root,
-         text="R — по часовой, L — против часовой, Enter — следующий цвет радуги"
-         ).pack()
-
+tk.Label(root, text="R — по часовой, L — против часовой, Enter — следующий цвет").pack()
 
 def draw():
     canvas.delete("all")
     flat = [c for p in vertices for c in p]
     canvas.create_polygon(flat, fill=current_color, outline="black", width=2)
-
 
 def on_key(event):
     global vertices, current_color, idx
@@ -118,8 +127,14 @@ def on_key(event):
         current_color = RAINBOW[idx][1]
         draw()
 
-
 root.bind("<Key>", on_key)
-
 draw()
+
+root.update_idletasks()
+root.lift()
+root.attributes("-topmost", True)
+root.after(200, lambda: root.attributes("-topmost", False))
+root.focus_force()
+canvas.focus_set()
+
 root.mainloop()
